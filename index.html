@@ -2,194 +2,326 @@
 <html lang="en">
 <head>
   <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width,initial-scale=1">
-  <title>MCWorld Experiments Editor — Bedrock-safe</title>
-  <meta name="description" content="Edit Bedrock .mcworld level.dat experiments entirely in-browser.">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Education Edition World Experiment Editor</title>
 
-  <!-- Libraries: JSZip (zip), pako (gzip), prismarine-nbt (NBT read/write UMD) -->
+  <!-- Libraries -->
   <script src="https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/pako/2.1.0/pako.min.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/prismarine-nbt@1.11.0/dist/index.umd.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/prismarine-nbt@1.11.0/dist/prismarine-nbt.min.js"></script>
 
   <style>
-    body{font-family:system-ui,Segoe UI,Roboto,Arial;margin:28px;background:#fafafa;color:#111}
-    .card{max-width:880px;margin:0 auto;background:white;padding:18px;border-radius:12px;box-shadow:0 8px 30px rgba(0,0,0,0.06)}
-    .drop{border:2px dashed #e1e1e1;padding:22px;border-radius:10px;text-align:center}
-    .exps{display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:8px;margin-top:12px}
-    label{display:block}
-    button{padding:10px 14px;border-radius:8px;border:none;background:#0b74ff;color:white;cursor:pointer}
-    pre{background:#f7f7f7;padding:10px;border-radius:8px;max-height:220px;overflow:auto}
-    small{color:#666}
+    body {
+      margin: 0;
+      padding: 0;
+      font-family: system-ui, Segoe UI, Roboto, Arial;
+      background: #f5f5f7;
+      color: #222;
+    }
+
+    header {
+      text-align: center;
+      padding: 30px 20px 10px;
+      font-size: 32px;
+      font-weight: 700;
+    }
+
+    .subtitle {
+      text-align: center;
+      color: #555;
+      font-size: 16px;
+      margin-bottom: 18px;
+    }
+
+    .container {
+      max-width: 900px;
+      background: #fff;
+      margin: 0 auto;
+      padding: 24px;
+      border-radius: 14px;
+      box-shadow: 0 8px 40px rgba(0, 0, 0, 0.08);
+    }
+
+    .dropzone {
+      border: 2px dashed #ccc;
+      border-radius: 14px;
+      padding: 40px;
+      text-align: center;
+      transition: 0.25s;
+      background: #fafafa;
+      cursor: pointer;
+    }
+
+    .dropzone:hover {
+      border-color: #0b74ff;
+      background: #f0f6ff;
+    }
+
+    input[type="file"] {
+      margin-top: 15px;
+    }
+
+    #status {
+      margin-top: 16px;
+      font-size: 14px;
+      color: #444;
+      text-align: center;
+    }
+
+    h3 {
+      margin-top: 25px;
+      font-size: 22px;
+    }
+
+    .exp-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+      gap: 10px;
+      margin-top: 12px;
+    }
+
+    .exp-grid label {
+      background: #f8f8f8;
+      padding: 10px 12px;
+      border-radius: 10px;
+      border: 1px solid #ddd;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    button {
+      margin-top: 18px;
+      padding: 12px 16px;
+      border: none;
+      border-radius: 10px;
+      background: #0b74ff;
+      color: white;
+      font-size: 16px;
+      cursor: pointer;
+      transition: 0.2s;
+    }
+
+    button:hover {
+      background: #005ce6;
+    }
+
+    pre {
+      margin-top: 20px;
+      background: #f1f1f1;
+      padding: 14px;
+      border-radius: 10px;
+      max-height: 260px;
+      overflow-y: auto;
+      font-size: 13px;
+    }
   </style>
 </head>
+
 <body>
-  <div class="card">
-    <h1>.mcworld Experiments Editor EDU</h1>
-    <p>Edit the <code>level.dat</code> experiments tag inside a <code>.mcworld</code> entirely in your browser. Always keep a backup.</p>
 
-    <div id="drop" class="drop">Drop a <code>.mcworld</code> or <code>.zip</code> here<br><br>
-      <input id="fileInput" type="file" accept=".mcworld,.zip" style="display:inline-block"></div>
-    <div id="status" style="margin-top:12px"><small>Waiting for file...</small></div>
+<header>.mcworld Experiments Editor — Education Edition</header>
+<div class="subtitle">Enable full experimental gameplay in any Education Edition world</div>
 
-    <div id="controls" style="display:none;margin-top:14px">
-      <h3>Enable experiments</h3>
-      <div class="exps" id="expList"></div>
-      <div style="margin-top:12px"><button id="processBtn">Build &amp; Download .mcworld</button></div>
-    </div>
-
-    <hr style="margin-top:18px">
-    <p style="font-size:0.9em;color:#444">Output / debug:</p>
-    <pre id="output"></pre>
+<div class="container">
+  <div id="dropzone" class="dropzone">
+    Drop a <b>.mcworld</b> or <b>.zip</b> here<br>
+    <input id="fileInput" type="file" accept=".mcworld,.zip">
   </div>
 
+  <div id="status"><small>Waiting for world...</small></div>
+
+  <div id="controls" style="display:none;">
+    <h3>Choose experiments to enable</h3>
+    <div id="expList" class="exp-grid"></div>
+    <button id="processBtn">Build & Download Modified World</button>
+  </div>
+
+  <h3 style="margin-top:30px;">Debug Output</h3>
+  <pre id="debug"></pre>
+</div>
+
 <script>
-(async()=>{
-  function toUint8Array(buf){
-    if(buf instanceof Uint8Array) return buf;
-    if(typeof Buffer !== 'undefined' && Buffer.isBuffer(buf)) return new Uint8Array(buf);
-    return new Uint8Array(buf);
-  }
+(function () {
 
   const JSZip = window.JSZip;
   const pako = window.pako;
-  const statusEl = document.getElementById('status');
-  const drop = document.getElementById('drop');
-  const fileInput = document.getElementById('fileInput');
-  const controls = document.getElementById('controls');
-  const expList = document.getElementById('expList');
-  const processBtn = document.getElementById('processBtn');
-  const out = document.getElementById('output');
+  const nbt = window.nbt;
+  const debug = document.getElementById("debug");
+  const status = document.getElementById("status");
+  const dropzone = document.getElementById("dropzone");
+  const fileInput = document.getElementById("fileInput");
+  const controls = document.getElementById("controls");
+  const expList = document.getElementById("expList");
+  const processBtn = document.getElementById("processBtn");
 
-  function log(...a){
-    console.log(...a);
-    out.textContent += a.map(x => typeof x==='object' ? JSON.stringify(x,null,2) : String(x)).join(' ') + '\n';
-    out.scrollTop = out.scrollHeight;
+  function log(msg, obj) {
+    if (obj) debug.textContent += msg + " " + JSON.stringify(obj, null, 2) + "\n";
+    else debug.textContent += msg + "\n";
+    debug.scrollTop = debug.scrollHeight;
   }
 
-  const commonExps = [
-    'experimental_gameplay','holiday_creator_features','beta_api','upcoming_creator_features',
-    'caves_and_cliffs','compressed_chunks','actor_system','restructured_world_generation',
-    'fluid_tick_updates','terrain_generation_v2'
+  const EXPERIMENTS = [
+    "experimental_gameplay",
+    "holiday_creator_features",
+    "beta_api",
+    "upcoming_creator_features",
+    "caves_and_cliffs",
+    "compressed_chunks",
+    "actor_system",
+    "restructured_world_generation",
+    "fluid_tick_updates",
+    "terrain_generation_v2",
   ];
 
-  function buildExpUI(){
-    expList.innerHTML = '';
-    commonExps.forEach(id=>{
-      const l = document.createElement('label');
-      l.innerHTML = `<input type="checkbox" class="exp" value="${id}"> ${id}`;
-      expList.appendChild(l);
+  function renderExperimentToggles() {
+    expList.innerHTML = "";
+    EXPERIMENTS.forEach(e => {
+      const label = document.createElement("label");
+      label.innerHTML = `<input type="checkbox" value="${e}"> ${e}`;
+      expList.appendChild(label);
     });
   }
-  buildExpUI();
+  renderExperimentToggles();
 
-  ['dragenter','dragover'].forEach(e=>drop.addEventListener(e, ev=>{ev.preventDefault();drop.style.borderColor='#999'}));
-  ['dragleave','drop'].forEach(e=>drop.addEventListener(e, ev=>{ev.preventDefault();drop.style.borderColor='#e1e1e1'}));
-  drop.addEventListener('drop', ev=>{ev.preventDefault(); const f=ev.dataTransfer.files[0]; if(f) handleFile(f);});
-  fileInput.addEventListener('change', ev=>{ const f=ev.target.files[0]; if(f) handleFile(f); });
+  // drag & drop
+  ["dragenter", "dragover"].forEach(ev =>
+    dropzone.addEventListener(ev, e => {
+      e.preventDefault();
+      dropzone.style.borderColor = "#0b74ff";
+    })
+  );
 
-  let currentZip = null;
-  let currentLevelPath = null;
-  let currentParsed = null;
-  let currentFilename = 'edited_world';
+  ["dragleave", "drop"].forEach(ev =>
+    dropzone.addEventListener(ev, e => {
+      e.preventDefault();
+      dropzone.style.borderColor = "#ccc";
+    })
+  );
 
-  async function handleFile(file){
-    out.textContent='';
-    statusEl.innerHTML = `<small>Loading ${file.name}...</small>`;
-    currentFilename = file.name.replace(/\.mcworld$|\.zip$/i,'') || 'edited_world';
+  dropzone.addEventListener("drop", e => {
+    const f = e.dataTransfer.files[0];
+    if (f) loadWorld(f);
+  });
 
-    const nbtLib = window.NBT || window.prismarineNbt;
-    if(!nbtLib){
-        statusEl.innerHTML = `<small style="color:crimson">NBT library unavailable</small>`;
-        log('prismarine-nbt missing on window');
-        return;
+  fileInput.addEventListener("change", e => {
+    const f = e.target.files[0];
+    if (f) loadWorld(f);
+  });
+
+  let loadedZip = null;
+  let parsedNBT = null;
+  let levelPath = null;
+  let baseName = "world";
+
+  async function loadWorld(file) {
+    debug.textContent = "";
+    status.textContent = "Loading " + file.name + "...";
+
+    baseName = file.name.replace(/\.mcworld|\.zip/i, "");
+
+    let zip;
+    try {
+      zip = await JSZip.loadAsync(file);
+      loadedZip = zip;
+    } catch (err) {
+      status.textContent = "Failed to open archive";
+      log("Zip error:", err);
+      return;
     }
 
-    try{
-      const zip = await JSZip.loadAsync(file);
-      currentZip = zip;
-      statusEl.innerHTML = `<small>Archive loaded — searching for level.dat...</small>`;
+    status.textContent = "Archive loaded — searching for level.dat";
 
-      let levelEntry = null;
-      zip.forEach((path, entry)=>{ if(path.toLowerCase().endsWith('level.dat')) levelEntry = entry; });
-      if(!levelEntry){ statusEl.innerHTML = `<small style="color:crimson">level.dat not found</small>`; log('Archive contents:'); zip.forEach((p)=>log(p)); return; }
+    let levelEntry = null;
+    zip.forEach((path, entry) => {
+      if (path.toLowerCase().endsWith("level.dat")) levelEntry = entry;
+    });
 
-      statusEl.innerHTML = `<small>level.dat found (${levelEntry.name}) — reading...</small>`;
-      const raw = await levelEntry.async('arraybuffer');
-      let bytes = toUint8Array(raw);
+    if (!levelEntry) {
+      status.textContent = "level.dat not found!";
+      return;
+    }
 
-      let nbtBytes = null;
-      try{ nbtBytes = pako.ungzip(bytes); log('Ungzip successful — length', nbtBytes.length); }
-      catch(e){ nbtBytes = bytes; log('Ungzip failed, using raw bytes'); }
+    levelPath = levelEntry.name;
 
-      let parsed = null;
-      try{
-        parsed = await new Promise((resolve, reject)=>{
-          const bufArg = (typeof Buffer !== 'undefined' && Buffer.from) ? Buffer.from(nbtBytes) : nbtBytes;
-          nbtLib.parse(bufArg, (err, data)=>{ if(err) reject(err); else resolve(data); });
-        });
-      }catch(err){ statusEl.innerHTML = `<small style="color:crimson">NBT parse failed</small>`; log('NBT parse error:', err); return; }
+    const raw = await levelEntry.async("arraybuffer");
+    let bytes = new Uint8Array(raw);
 
-      currentParsed = parsed; currentLevelPath = levelEntry.name;
-      statusEl.innerHTML = `<small>NBT parsed — ready. Choose experiments and Build.</small>`;
-      controls.style.display = 'block';
+    let nbtBytes;
+    try {
+      nbtBytes = pako.ungzip(bytes);
+      log("Gzip OK");
+    } catch {
+      log("Not gzipped; using raw bytes");
+      nbtBytes = bytes;
+    }
 
-      try{
-        const root = parsed.value || {};
-        let expTag = null;
-        if(root.Experiments && root.Experiments.value) expTag = root.Experiments.value;
-        else if(root.Data && root.Data.value && root.Data.value.Experiments && root.Data.value.Experiments.value) expTag = root.Data.value.Experiments.value;
-        else if(root.Data && root.Data.Experiments && root.Data.Experiments.value) expTag = root.Data.Experiments.value;
+    try {
+      parsedNBT = await new Promise((resolve, reject) => {
+        nbt.parse(nbtBytes, (err, data) => err ? reject(err) : resolve(data));
+      });
+    } catch (e) {
+      status.textContent = "Failed to parse NBT";
+      log("NBT error:", e);
+      return;
+    }
 
-        if(expTag){
-          const enabled = new Set(Object.keys(expTag).filter(k=>{
-            const v = expTag[k];
-            if(!v) return false;
-            if(typeof v.value !== 'undefined') return v.value === 1 || v.value === true || v.value === '\x01';
-            return false;
-          }));
-          document.querySelectorAll('.exp').forEach(cb=>{ cb.checked = enabled.has(cb.value); });
-        }
-      }catch(e){ log('Pre-check failed:', e); }
+    status.textContent = "World loaded — choose experiments";
 
-    }catch(e){ statusEl.innerHTML = `<small style="color:crimson">Failed to open archive: ${e.message}</small>`; log('Zip read error:', e); }
+    populateExistingExperiments();
+
+    controls.style.display = "block";
   }
 
-  processBtn.addEventListener('click', async ()=>{
-    if(!currentParsed || !currentZip) return alert('Load a .mcworld first');
-    const chosen = Array.from(document.querySelectorAll('.exp:checked')).map(i=>i.value);
-    log('Chosen experiments:', chosen);
+  function populateExistingExperiments() {
+    const root = parsedNBT.value;
+    const exp =
+      root?.Data?.value?.Experiments?.value ||
+      root?.Experiments?.value ||
+      {};
 
-    const root = currentParsed.value || {};
-    if(!root.Data) root.Data = { type:'compound', value: {} };
-    if(!root.Data.value) root.Data.value = root.Data.value || {};
+    const enabled = new Set(Object.entries(exp).filter(e => e[1]?.value === 1).map(e => e[0]));
 
-    const expCompound = {};
-    chosen.forEach(id => { expCompound[id] = { type: 'byte', value: 1 }; });
+    document.querySelectorAll("#expList input").forEach(i => {
+      i.checked = enabled.has(i.value);
+    });
+  }
 
-    root.Data.value.Experiments = { type: 'compound', value: expCompound };
-    root.Experiments = { type: 'compound', value: expCompound };
+  processBtn.addEventListener("click", async () => {
+    if (!parsedNBT) return;
 
-    try{
-      let writeBuf = null;
-      if(nbtLib.writeUncompressed) writeBuf = nbtLib.writeUncompressed(currentParsed);
-      else if(nbtLib.write) writeBuf = nbtLib.write(currentParsed);
-      else throw new Error('No NBT write function found');
+    const chosen = [...document.querySelectorAll("#expList input:checked")].map(i => i.value);
 
-      let outBytes = toUint8Array(writeBuf);
-      const gz = pako.gzip(outBytes);
-      currentZip.file(currentLevelPath, gz, {binary:true});
+    const compound = {};
+    chosen.forEach(e => compound[e] = { type: "byte", value: 1 });
 
-      statusEl.innerHTML = `<small>Generating .mcworld...</small>`;
-      const blob = await currentZip.generateAsync({type:'blob'});
-      const a = document.createElement('a');
-      a.href = URL.createObjectURL(blob);
-      a.download = currentFilename + '_experiments_enabled.mcworld';
-      a.click();
-      statusEl.innerHTML = `<small>Download started: ${a.download}</small>`;
-      log('Download created');
-    }catch(e){ statusEl.innerHTML = `<small style="color:crimson">Write/generate failed</small>`; log('Write error:', e); }
+    const root = parsedNBT.value;
+
+    if (!root.Data) root.Data = { type: "compound", value: {} };
+    if (!root.Data.value) root.Data.value = {};
+
+    root.Data.value.Experiments = { type: "compound", value: compound };
+    root.Experiments = { type: "compound", value: compound };
+
+    let nbtBuf = nbt.writeUncompressed(parsedNBT);
+    const gz = pako.gzip(new Uint8Array(nbtBuf));
+
+    loadedZip.file(levelPath, gz, { binary: true });
+
+    status.textContent = "Building new world...";
+
+    const blob = await loadedZip.generateAsync({ type: "blob" });
+    const a = document.createElement("a");
+    a.href = URL.createObjectURL(blob);
+    a.download = baseName + "_experiments.mcworld";
+    a.click();
+
+    status.textContent = "Download ready!";
+    log("Export complete");
   });
+
 })();
 </script>
+
 </body>
 </html>
