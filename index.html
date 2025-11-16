@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1">
-  <title>MCWorld Experiments Editor EDU</title>
+  <title>MCWorld Experiments Editor — Bedrock-safe</title>
   <meta name="description" content="Edit Bedrock .mcworld level.dat experiments entirely in-browser.">
 
   <!-- Libraries: JSZip (zip), pako (gzip), prismarine-nbt (NBT read/write UMD) -->
@@ -24,7 +24,7 @@
 </head>
 <body>
   <div class="card">
-    <h1>MCWorld Experiments Editor — EDU</h1>
+    <h1>.mcworld Experiments Editor EDU</h1>
     <p>Edit the <code>level.dat</code> experiments tag inside a <code>.mcworld</code> entirely in your browser. Always keep a backup.</p>
 
     <div id="drop" class="drop">Drop a <code>.mcworld</code> or <code>.zip</code> here<br><br>
@@ -52,8 +52,6 @@
 
   const JSZip = window.JSZip;
   const pako = window.pako;
-  const nbtLib = window.NBT || window.prismarineNbt;
-
   const statusEl = document.getElementById('status');
   const drop = document.getElementById('drop');
   const fileInput = document.getElementById('fileInput');
@@ -66,12 +64,6 @@
     console.log(...a);
     out.textContent += a.map(x => typeof x==='object' ? JSON.stringify(x,null,2) : String(x)).join(' ') + '\n';
     out.scrollTop = out.scrollHeight;
-  }
-
-  if(!nbtLib){
-    statusEl.innerHTML = `<small style="color:crimson">NBT library unavailable</small>`;
-    log('prismarine-nbt missing on window');
-    return;
   }
 
   const commonExps = [
@@ -104,6 +96,14 @@
     out.textContent='';
     statusEl.innerHTML = `<small>Loading ${file.name}...</small>`;
     currentFilename = file.name.replace(/\.mcworld$|\.zip$/i,'') || 'edited_world';
+
+    const nbtLib = window.NBT || window.prismarineNbt;
+    if(!nbtLib){
+        statusEl.innerHTML = `<small style="color:crimson">NBT library unavailable</small>`;
+        log('prismarine-nbt missing on window');
+        return;
+    }
+
     try{
       const zip = await JSZip.loadAsync(file);
       currentZip = zip;
