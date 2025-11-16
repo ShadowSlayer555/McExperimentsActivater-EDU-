@@ -3,13 +3,13 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1">
-  <title>MCWorld Experiments Editor — EDU</title>
+  <title>MCWorld Experiments Editor EDU</title>
   <meta name="description" content="Edit Bedrock .mcworld level.dat experiments entirely in-browser.">
 
   <!-- Libraries: JSZip (zip), pako (gzip), prismarine-nbt (NBT read/write UMD) -->
   <script src="https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/pako/2.1.0/pako.min.js"></script>
-  <script src="https://unpkg.com/prismarine-nbt@1.11.0/dist/index.umd.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/prismarine-nbt@1.11.0/dist/index.umd.js"></script>
 
   <style>
     body{font-family:system-ui,Segoe UI,Roboto,Arial;margin:28px;background:#fafafa;color:#111}
@@ -44,7 +44,6 @@
 
 <script>
 (async()=>{
-  // Helper: safe buffer normalization across environments
   function toUint8Array(buf){
     if(buf instanceof Uint8Array) return buf;
     if(typeof Buffer !== 'undefined' && Buffer.isBuffer(buf)) return new Uint8Array(buf);
@@ -53,7 +52,7 @@
 
   const JSZip = window.JSZip;
   const pako = window.pako;
-  const nbtLib = window.prismarineNbt;
+  const nbtLib = window.NBT || window.prismarineNbt;
 
   const statusEl = document.getElementById('status');
   const drop = document.getElementById('drop');
@@ -69,7 +68,12 @@
     out.scrollTop = out.scrollHeight;
   }
 
-  // A curated list of common Bedrock experiment IDs. You can add more.
+  if(!nbtLib){
+    statusEl.innerHTML = `<small style="color:crimson">NBT library unavailable</small>`;
+    log('prismarine-nbt missing on window');
+    return;
+  }
+
   const commonExps = [
     'experimental_gameplay','holiday_creator_features','beta_api','upcoming_creator_features',
     'caves_and_cliffs','compressed_chunks','actor_system','restructured_world_generation',
@@ -86,7 +90,6 @@
   }
   buildExpUI();
 
-  // Drag/drop handling
   ['dragenter','dragover'].forEach(e=>drop.addEventListener(e, ev=>{ev.preventDefault();drop.style.borderColor='#999'}));
   ['dragleave','drop'].forEach(e=>drop.addEventListener(e, ev=>{ev.preventDefault();drop.style.borderColor='#e1e1e1'}));
   drop.addEventListener('drop', ev=>{ev.preventDefault(); const f=ev.dataTransfer.files[0]; if(f) handleFile(f);});
@@ -114,18 +117,13 @@
       const raw = await levelEntry.async('arraybuffer');
       let bytes = toUint8Array(raw);
 
-      // Try to ungzip. Bedrock level.dat typically gzipped
       let nbtBytes = null;
       try{ nbtBytes = pako.ungzip(bytes); log('Ungzip successful — length', nbtBytes.length); }
       catch(e){ nbtBytes = bytes; log('Ungzip failed, using raw bytes'); }
 
-      // Parse NBT. prismarine-nbt expects a Buffer-like argument and callback
-      if(!nbtLib || !nbtLib.parse){ statusEl.innerHTML = `<small style="color:crimson">NBT library unavailable</small>`; log('prismarine-nbt missing on window'); return; }
-
       let parsed = null;
       try{
         parsed = await new Promise((resolve, reject)=>{
-          // convert to Buffer if Buffer exists
           const bufArg = (typeof Buffer !== 'undefined' && Buffer.from) ? Buffer.from(nbtBytes) : nbtBytes;
           nbtLib.parse(bufArg, (err, data)=>{ if(err) reject(err); else resolve(data); });
         });
@@ -135,9 +133,7 @@
       statusEl.innerHTML = `<small>NBT parsed — ready. Choose experiments and Build.</small>`;
       controls.style.display = 'block';
 
-      // try to pre-check any existing experiments
       try{
-        // Bedrock worlds vary — experiments may be under root.Experiments or root.Data.Experiments
         const root = parsed.value || {};
         let expTag = null;
         if(root.Experiments && root.Experiments.value) expTag = root.Experiments.value;
@@ -148,7 +144,7 @@
           const enabled = new Set(Object.keys(expTag).filter(k=>{
             const v = expTag[k];
             if(!v) return false;
-            if(typeof v.value !== 'undefined') return v.value === 1 || v.value === true || v.value === '\x01' ;
+            if(typeof v.value !== 'undefined') return v.value === 1 || v.value === true || v.value === '\x01';
             return false;
           }));
           document.querySelectorAll('.exp').forEach(cb=>{ cb.checked = enabled.has(cb.value); });
@@ -164,33 +160,23 @@
     log('Chosen experiments:', chosen);
 
     const root = currentParsed.value || {};
-
-    // Ensure Data compound exists in parsed structure
     if(!root.Data) root.Data = { type:'compound', value: {} };
     if(!root.Data.value) root.Data.value = root.Data.value || {};
 
-    // Build compound experiments object with byte = 1
     const expCompound = {};
     chosen.forEach(id => { expCompound[id] = { type: 'byte', value: 1 }; });
 
-    // Place experiments in root.Data.Experiments and root.Experiments (some worlds expect either)
     root.Data.value.Experiments = { type: 'compound', value: expCompound };
     root.Experiments = { type: 'compound', value: expCompound };
 
-    // Now write the NBT back
     try{
       let writeBuf = null;
       if(nbtLib.writeUncompressed) writeBuf = nbtLib.writeUncompressed(currentParsed);
       else if(nbtLib.write) writeBuf = nbtLib.write(currentParsed);
       else throw new Error('No NBT write function found');
 
-      // normalize to Uint8Array
       let outBytes = toUint8Array(writeBuf);
-
-      // gzip the NBT (Bedrock expects gzipped level.dat)
       const gz = pako.gzip(outBytes);
-
-      // replace in zip and generate
       currentZip.file(currentLevelPath, gz, {binary:true});
 
       statusEl.innerHTML = `<small>Generating .mcworld...</small>`;
@@ -203,7 +189,6 @@
       log('Download created');
     }catch(e){ statusEl.innerHTML = `<small style="color:crimson">Write/generate failed</small>`; log('Write error:', e); }
   });
-
 })();
 </script>
 </body>
