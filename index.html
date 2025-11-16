@@ -65,8 +65,7 @@
 
   function log(...a){
     console.log(...a);
-    out.textContent += a.map(x => typeof x==='object' ? JSON.stringify(x,null,2) : String(x)).join(' ') + '
-';
+    out.textContent += a.map(x => typeof x==='object' ? JSON.stringify(x,null,2) : String(x)).join(' ') + '\n';
     out.scrollTop = out.scrollHeight;
   }
 
