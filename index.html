@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>Simple MCWorld Experiment Editor</title>
+  <script src="https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/nbt@1.1.2/nbt.js"></script>
+</head>
+<body>
+  <h2>MCWorld Experiment Editor</h2>
+  <input type="file" id="fileInput" accept=".mcworld,.zip"><br><br>
+
+  <label><input type="checkbox" class="exp" value="experimental_gameplay"> Experimental Gameplay</label><br>
+  <label><input type="checkbox" class="exp" value="holiday_creator_features"> Holiday Creator</label><br>
+  <label><input type="checkbox" class="exp" value="beta_api"> Beta API</label><br>
+  <label><input type="checkbox" class="exp" value="upcoming_creator_features"> Upcoming Creator</label><br><br>
+
+  <button id="processBtn">Process & Download</button>
+
+  <script>
+    document.getElementById('processBtn').onclick = async () => {
+      const file = document.getElementById('fileInput').files[0];
+      if (!file) return alert("Please select a .mcworld file first.");
+
+      const zip = await JSZip.loadAsync(file);
+      const levelDat = zip.file("level.dat");
+      if (!levelDat) return alert("Couldn't find level.dat in this world.");
+
+      const raw = await levelDat.async("arraybuffer");
+
+      nbt.parse(Buffer.from(raw), (err, data) => {
+        if (err) { alert("NBT parse error"); return; }
+
+        const selected = document.querySelectorAll('.exp:checked');
+        const expObj = {};
+        selected.forEach(cb => expObj[cb.value] = true);
+
+        data.value.Experiments = data.value.Experiments || { value: {} };
+        data.value.Experiments.value = expObj;
+
+        const rebuilt = nbt.writeUncompressed(data);
+        zip.file("level.dat", rebuilt);
+
+        zip.generateAsync({ type: "blob" }).then(content => {
+          const a = document.createElement('a');
+          a.href = URL.createObjectURL(content);
+          a.download = "edited.mcworld";
+          a.click();
+        });
+      });
+    };
+  </script>
+</body>
+</html>
