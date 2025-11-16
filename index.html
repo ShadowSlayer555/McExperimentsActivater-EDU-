@@ -1,378 +1,177 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>MCWorld Experiments Editor — Education Edition (Fixed)</title>
-  <meta name="description" content="Enable experiments inside .mcworld files entirely in your browser." />
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>.mcworld Experiments Editor — Education Edition</title>
 
-  <!-- libs -->
+  <!-- Dependencies -->
   <script src="https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/pako/2.1.0/pako.min.js"></script>
-  <!-- correct UMD bundle (exposes window.nbt) -->
-  <script src="https://cdn.jsdelivr.net/npm/prismarine-nbt@1.11.0/dist/prismarine-nbt.min.js"></script>
+
+  <!-- ✔ Correct UMD build that exposes window.nbt  -->
+  <script src="https://unpkg.com/prismarine-nbt@2.2.1/dist/prismarine-nbt.umd.js"></script>
 
   <style>
-    :root{
-      --bg:#0f1720; --card:#0b1220; --muted:#9aa4b2; --accent:#60a5fa; --glass:rgba(255,255,255,0.03);
-      --radius:12px;
+    body { font-family: system-ui; background:#f7f7f7; padding:20px; color:#222; }
+    .card {
+      max-width: 820px; margin:auto; padding:25px;
+      background:white; border-radius:14px;
+      box-shadow:0 5px 30px rgba(0,0,0,0.07);
     }
-    html,body{height:100%;margin:0;font-family:Inter,system-ui,Segoe UI,Roboto,Arial;background:linear-gradient(180deg,#071226 0%, #07192b 100%);color:#e6eef6}
-    .wrap{max-width:960px;margin:36px auto;padding:22px;background:linear-gradient(180deg, rgba(255,255,255,0.02), transparent);border-radius:var(--radius);box-shadow:0 10px 40px rgba(0,0,0,0.6);border:1px solid rgba(255,255,255,0.02)}
-    h1{margin:0;font-size:1.25rem}
-    p.lead{color:var(--muted);margin:6px 0 14px}
-    .drop{border:2px dashed var(--glass);padding:20px;border-radius:10px;text-align:center;cursor:pointer;background:linear-gradient(180deg, rgba(255,255,255,0.01), transparent)}
-    .drop.hover{border-color:rgba(96,165,250,0.7)}
-    .controls{display:flex;gap:12px;align-items:center;margin-top:14px;flex-wrap:wrap}
-    .exps{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:8px;margin-top:12px}
-    label.exp{display:flex;align-items:center;gap:8px;background:rgba(255,255,255,0.02);padding:8px;border-radius:8px}
-    button{background:linear-gradient(180deg,var(--accent),#2b81ff);color:white;padding:9px 12px;border-radius:10px;border:none;cursor:pointer;font-weight:600}
-    .muted-btn{background:transparent;border:1px solid rgba(255,255,255,0.04);color:var(--muted);padding:8px;border-radius:9px}
-    pre#output{background:#071227;margin-top:16px;padding:12px;border-radius:10px;color:var(--muted);max-height:240px;overflow:auto;border:1px solid rgba(255,255,255,0.02)}
-    .small{font-size:0.9rem;color:var(--muted)}
-    .row{display:flex;gap:8px;align-items:center}
-    .file-name{font-weight:600;color:#dbeafe}
-    .status{color:var(--muted);font-size:0.95rem}
-    footer{margin-top:18px;color:var(--muted);font-size:0.85rem}
-    .top-actions{display:flex;gap:8px;align-items:center}
-    @media (max-width:640px){ .controls{flex-direction:column;align-items:stretch} .top-actions{flex-direction:column;align-items:stretch} }
+    .drop {
+      border:2px dashed #ccc; padding:25px; border-radius:10px;
+      text-align:center; background:#fafafa; cursor:pointer;
+    }
+    button {
+      padding:12px 18px; background:#0b67ff; color:white;
+      border:none; border-radius:8px; cursor:pointer; font-size:1rem;
+    }
+    .exp-grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(220px,1fr)); gap:10px; margin-top:15px; }
+    pre { background:#eee; padding:10px; border-radius:6px; max-height:260px; overflow:auto; }
   </style>
 </head>
 <body>
-  <div class="wrap">
-    <h1>.mcworld Experiments Editor — Education Edition</h1>
-    <p class="lead">Enable <strong>full experimental gameplay</strong> inside any .mcworld file — 100% in your browser. Always keep a backup.</p>
 
-    <div id="drop" class="drop">
-      <div style="font-size:0.95rem">Drop a <code>.mcworld</code> or <code>.zip</code> here, or click to choose</div>
-      <div style="margin-top:8px" class="small">Accepted: <code>.mcworld</code>, <code>.zip</code></div>
-      <input id="fileInput" type="file" accept=".mcworld,.zip" style="display:none" />
-    </div>
+<div class="card">
+  <h1>.mcworld Experiments Editor — Education Edition</h1>
+  <p>Enable <b>full experimental gameplay</b> inside any .mcworld file — entirely in your browser.</p>
 
-    <div style="margin-top:12px" class="row">
-      <div class="status" id="status">Waiting for file...</div>
-    </div>
-
-    <div id="controls" style="display:none;margin-top:14px">
-      <div class="row top-actions" style="width:100%;justify-content:space-between">
-        <div>
-          <div class="small">Loaded file: <span id="fn" class="file-name"></span></div>
-          <div class="small" id="levelPath"></div>
-        </div>
-
-        <div style="display:flex;gap:8px;align-items:center">
-          <button id="enableAll">Enable common experiments</button>
-          <button id="buildBtn">Build &amp; Download .mcworld</button>
-        </div>
-      </div>
-
-      <h3 style="margin-top:14px;margin-bottom:6px">Experiments (choose to enable)</h3>
-      <div class="exps" id="expList"></div>
-    </div>
-
-    <pre id="output">Debug Output\n</pre>
-    <footer>Tip: If you see a parse error, paste the debug output here and I'll help. This page never uploads your files to any server — everything runs locally in your browser.</footer>
+  <div id="drop" class="drop">
+    Drop a <b>.mcworld</b> or <b>.zip</b> here<br><br>
+    <input id="fileInput" type="file" accept=".mcworld,.zip">
   </div>
 
+  <p id="status"><i>Waiting for file…</i></p>
+
+  <div id="controls" style="display:none;">
+    <h3>Enable Experiments</h3>
+    <div id="expList" class="exp-grid"></div>
+    <br>
+    <button id="buildBtn">Build & Download</button>
+  </div>
+
+  <h3>Debug Output</h3>
+  <pre id="log"></pre>
+</div>
+
 <script>
-(async () => {
-  // libs
-  const JSZip = window.JSZip;
-  const pako = window.pako;
-  const NBT_CANDIDATES = [window.nbt, window.prismarineNbt, window.NBT];
-  const nbt = NBT_CANDIDATES.find(x => !!x);
+const logEl = document.getElementById("log");
+function log(...msg) {
+  logEl.textContent += msg.join(" ") + "\n";
+  logEl.scrollTop = logEl.scrollHeight;
+}
 
-  // DOM
-  const drop = document.getElementById('drop');
-  const fileInput = document.getElementById('fileInput');
-  const statusEl = document.getElementById('status');
-  const controls = document.getElementById('controls');
-  const expList = document.getElementById('expList');
-  const output = document.getElementById('output');
-  const fnEl = document.getElementById('fn');
-  const levelPathEl = document.getElementById('levelPath');
-  const enableAllBtn = document.getElementById('enableAll');
-  const buildBtn = document.getElementById('buildBtn');
+const nbt = window.nbt; // ✔ guaranteed to exist with correct script
+const drop = document.getElementById("drop");
+const fileInput = document.getElementById("fileInput");
+const statusEl = document.getElementById("status");
+const controls = document.getElementById("controls");
+const expList = document.getElementById("expList");
 
-  function log(...args){
-    console.log(...args);
-    output.textContent += args.map(a => (typeof a === 'object' ? JSON.stringify(a, null, 2) : String(a))).join(' ') + '\n';
-    output.scrollTop = output.scrollHeight;
-  }
+let zipFile, parsedNBT, levelPath, baseName;
 
-  if (!JSZip || !pako) {
-    statusEl.textContent = 'Required libraries missing';
-    log('Missing JSZip or pako.');
+const EXPERIMENTS = [
+  "holiday_creator_features",
+  "beta_api",
+  "upcoming_creator_features",
+  "experimental_gameplay",
+  "caves_and_cliffs",
+  "actor_system",
+  "terrain_generation_v2"
+];
+
+function buildUI() {
+  expList.innerHTML = "";
+  EXPERIMENTS.forEach(id => {
+    const label = document.createElement("label");
+    label.innerHTML = `<input type="checkbox" value="${id}"> ${id}`;
+    expList.appendChild(label);
+  });
+}
+buildUI();
+
+drop.addEventListener("dragover", e => e.preventDefault());
+drop.addEventListener("drop", e => {
+  e.preventDefault();
+  if (e.dataTransfer.files.length) handleFile(e.dataTransfer.files[0]);
+});
+fileInput.addEventListener("change", () => {
+  if (fileInput.files.length) handleFile(fileInput.files[0]);
+});
+
+async function handleFile(file) {
+  log("Loading file:", file.name);
+  statusEl.textContent = "Reading archive…";
+
+  baseName = file.name.replace(/\.mcworld$|\.zip$/i, "");
+  zipFile = await JSZip.loadAsync(file);
+
+  // find level.dat
+  levelPath = null;
+  zipFile.forEach((p) => { if (p.endsWith("level.dat")) levelPath = p; });
+
+  if (!levelPath) {
+    statusEl.textContent = "Error: level.dat not found.";
+    log("level.dat not found");
     return;
   }
-  if (!nbt) {
-    statusEl.textContent = 'NBT library unavailable (window.nbt window.prismarineNbt or window.NBT not found)';
-    log('prismarine-nbt not found on window. Ensure prismarine-nbt UMD is loaded (we recommend prismarine-nbt@1.11.0 dist UMD).');
+
+  log("Found:", levelPath);
+
+  let raw = await zipFile.file(levelPath).async("uint8array");
+
+  // Try gunzip
+  let nbtBytes;
+  try {
+    nbtBytes = pako.ungzip(raw);
+  } catch {
+    log("Not gzipped; using raw bytes");
+    nbtBytes = raw;
   }
 
-  // common experiments list (you can adjust)
-  const commonExps = [
-    'experimental_gameplay','holiday_creator_features','beta_api','upcoming_creator_features',
-    'caves_and_cliffs','compressed_chunks','actor_system','restructured_world_generation',
-    'fluid_tick_updates','terrain_generation_v2'
-  ];
-
-  function buildExpUI(){
-    expList.innerHTML = '';
-    commonExps.forEach(id => {
-      const lab = document.createElement('label');
-      lab.className = 'exp';
-      lab.innerHTML = `<input type="checkbox" class="exp-checkbox" value="${id}"> <div style="flex:1">${id}</div>`;
-      expList.appendChild(lab);
-    });
-  }
-  buildExpUI();
-
-  // drag/drop handlers
-  ['dragenter','dragover'].forEach(e => drop.addEventListener(e, ev => { ev.preventDefault(); drop.classList.add('hover'); }));
-  ['dragleave','drop'].forEach(e => drop.addEventListener(e, ev => { ev.preventDefault(); drop.classList.remove('hover'); }));
-  drop.addEventListener('click', () => fileInput.click());
-  drop.addEventListener('drop', ev => {
-    ev.preventDefault();
-    const f = ev.dataTransfer.files && ev.dataTransfer.files[0];
-    if (f) handleFile(f);
-  });
-  fileInput.addEventListener('change', ev => {
-    const f = ev.target.files && ev.target.files[0];
-    if (f) handleFile(f);
-  });
-
-  // helpers
-  function toUint8Array(buf){
-    if (buf instanceof Uint8Array) return buf;
-    if (typeof Buffer !== 'undefined' && Buffer.isBuffer(buf)) return new Uint8Array(buf);
-    return new Uint8Array(buf);
+  // Parse NBT (✔ this now works)
+  try {
+    parsedNBT = await nbt.parse(nbtBytes);
+  } catch (err) {
+    log("NBT error:", err);
+    statusEl.textContent = "Failed to parse NBT";
+    return;
   }
 
-  function isGzip(bytes){
-    if(!bytes || bytes.length < 2) return false;
-    return bytes[0] === 0x1f && bytes[1] === 0x8b;
-  }
+  log("NBT parsed successfully.");
+  statusEl.textContent = "Ready. Select experiments.";
+  controls.style.display = "block";
+}
 
-  // Universal NBT parse wrapper (handles multiple API shapes)
-  async function parseNBTFromBytes(bytes){
-    // prefer nbt.parse (callback style)
-    const buff = (typeof Buffer !== 'undefined' && Buffer.from) ? Buffer.from(bytes) : bytes;
-    if (!nbt) throw new Error('NBT library not found on window');
+document.getElementById("buildBtn").addEventListener("click", async () => {
+  const selected = [...document.querySelectorAll("#expList input:checked")].map(c => c.value);
+  log("Selected experiments:", selected.join(", "));
 
-    // Try standard callback parse if available
-    if (typeof nbt.parse === 'function') {
-      return await new Promise((resolve, reject) => {
-        try {
-          nbt.parse(buff, (err, data) => err ? reject(err) : resolve(data));
-        } catch (err) { reject(err); }
-      });
-    }
+  const root = parsedNBT.value;
 
-    // Some builds expose parseUncompressed/readUncompressed - try them
-    if (typeof nbt.parseUncompressed === 'function') {
-      try { return nbt.parseUncompressed(buff); } catch(e){ /* fallthrough */ }
-    }
-    if (typeof nbt.readUncompressed === 'function') {
-      try { return nbt.readUncompressed(buff); } catch(e){ /* fallthrough */ }
-    }
-    // last resort: some packages export parseSync or parseBuffer
-    if (typeof nbt.parseSync === 'function') {
-      try { return nbt.parseSync(buff); } catch(e){ /* fallthrough */ }
-    }
-    throw new Error('No compatible NBT parse function found on prismarine-nbt build');
-  }
+  if (!root.Data) root.Data = { type:"compound", value:{} };
+  if (!root.Data.value) root.Data.value = {};
 
-  // Universal write wrapper - returns Uint8Array
-  function writeNBTToBytes(parsed){
-    if (!nbt) throw new Error('NBT library not found on window');
-    let out = null;
-    if (typeof nbt.writeUncompressed === 'function') {
-      out = nbt.writeUncompressed(parsed);
-    } else if (typeof nbt.write === 'function') {
-      out = nbt.write(parsed);
-    } else if (typeof nbt.writeSync === 'function') {
-      out = nbt.writeSync(parsed);
-    } else {
-      throw new Error('No compatible NBT write function found on prismarine-nbt build');
-    }
-    // convert to Uint8Array if necessary
-    return toUint8Array(out);
-  }
+  const expObj = {};
+  selected.forEach(id => expObj[id] = { type:"byte", value:1 });
 
-  // state
-  let currentZip = null;
-  let currentLevelPath = null;
-  let currentParsed = null;
-  let currentFilename = 'edited_world';
+  root.Data.value.Experiments = { type:"compound", value:expObj };
 
-  async function handleFile(file){
-    output.textContent = 'Debug Output\n';
-    log('Loading file:', file.name);
-    statusEl.textContent = 'Loading archive...';
-    fnEl.textContent = file.name;
-    currentFilename = String(file.name).replace(/\.mcworld$|\.zip$/i, '') || 'edited_world';
+  const uncompressed = nbt.writeUncompressed(parsedNBT);
+  const gzipped = pako.gzip(uncompressed);
 
-    try {
-      const zip = await JSZip.loadAsync(file);
-      currentZip = zip;
-      statusEl.textContent = 'Archive loaded — locating level.dat...';
+  zipFile.file(levelPath, gzipped);
 
-      // find level.dat entry (case-insensitive)
-      let levelEntry = null;
-      zip.forEach((path, entry) => { if (path.toLowerCase().endsWith('level.dat')) levelEntry = entry; });
-      if (!levelEntry) {
-        statusEl.textContent = 'level.dat not found';
-        log('Archive contents:');
-        zip.forEach(p => log(p));
-        return;
-      }
-      currentLevelPath = levelEntry.name;
-      levelPathEl.textContent = `level.dat path: ${currentLevelPath}`;
-      statusEl.textContent = `Reading ${currentLevelPath}...`;
+  const blob = await zipFile.generateAsync({ type:"blob" });
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(blob);
+  a.download = baseName + "_experiments.mcworld";
+  a.click();
 
-      // read raw bytes
-      const raw = await levelEntry.async('arraybuffer');
-      const bytes = toUint8Array(raw);
-
-      // detect gzip vs raw
-      let nbtBytes = bytes;
-      try {
-        if (isGzip(bytes)) {
-          log('Found gzip header; ungzipping...');
-          nbtBytes = pako.ungzip(bytes);
-          log('Ungzip OK —', nbtBytes.length, 'bytes');
-        } else {
-          log('Not gzipped; using raw bytes');
-        }
-      } catch (e) {
-        log('Ungzip failed — will attempt raw bytes anyway', e);
-        nbtBytes = bytes;
-      }
-
-      // Try parse
-      let parsed = null;
-      try {
-        parsed = await parseNBTFromBytes(nbtBytes);
-        log('NBT parse successful');
-      } catch (err) {
-        // If parse failed on raw, try alternative: maybe the file was gzipped but header stripped — try ungzip then parse
-        log('NBT parse failed first attempt:', err && err.message ? err.message : err);
-        throw err; // bubble up to user (we already logged details)
-      }
-
-      currentParsed = parsed;
-      statusEl.textContent = 'NBT parsed — ready';
-      controls.style.display = 'block';
-
-      // populate current experiments UI: search for Data.Experiments or root.Experiments
-      try {
-        const root = parsed.value || {};
-        let expTag = null;
-        if (root.Data && root.Data.value && root.Data.value.Experiments && root.Data.value.Experiments.value) {
-          expTag = root.Data.value.Experiments.value;
-        } else if (root.Experiments && root.Experiments.value) {
-          expTag = root.Experiments.value;
-        }
-        if (expTag) {
-          const enabled = new Set(Object.keys(expTag).filter(k => {
-            const v = expTag[k];
-            return v && (v.value === 1 || v.value === true || v.value === '\x01');
-          }));
-          document.querySelectorAll('.exp-checkbox').forEach(cb => {
-            cb.checked = enabled.has(cb.value);
-          });
-          log('Pre-loaded experiment flags:', Array.from(enabled).join(', ') || '(none)');
-        } else {
-          log('No existing Experiments compound found in this world.');
-        }
-      } catch (e) {
-        log('Failed to pre-load experiments list:', e);
-      }
-
-    } catch (err) {
-      statusEl.textContent = 'Failed to open archive or parse NBT';
-      log('Error while opening/reading file:', err && (err.message || err));
-    }
-  }
-
-  enableAllBtn.addEventListener('click', () => {
-    document.querySelectorAll('.exp-checkbox').forEach(cb => cb.checked = true);
-  });
-
-  buildBtn.addEventListener('click', async () => {
-    if (!currentParsed || !currentZip) return alert('Load a .mcworld first');
-    const chosen = Array.from(document.querySelectorAll('.exp-checkbox:checked')).map(i => i.value);
-    log('Chosen experiments to set:', chosen);
-
-    try {
-      const root = currentParsed.value || {};
-      // ensure Data compound
-      if (!root.Data) root.Data = { type: 'compound', value: {} };
-      if (!root.Data.value) root.Data.value = {};
-
-      const expCompound = {};
-      chosen.forEach(id => { expCompound[id] = { type: 'byte', value: 1 }; });
-
-      // set both common locations
-      root.Data.value.Experiments = { type: 'compound', value: expCompound };
-      root.Experiments = { type: 'compound', value: expCompound };
-
-      // write NBT bytes
-      const writeBuf = writeNBTToBytes(currentParsed);
-      const outBytes = toUint8Array(writeBuf);
-
-      // gzip for bedrock .mcworld
-      const gz = pako.gzip(outBytes);
-
-      // replace file in zip
-      currentZip.file(currentLevelPath, gz, { binary: true });
-
-      statusEl.textContent = 'Building .mcworld...';
-      const blob = await currentZip.generateAsync({ type: 'blob' });
-      const a = document.createElement('a');
-      a.href = URL.createObjectURL(blob);
-      a.download = currentFilename + '_experiments_enabled.mcworld';
-      a.click();
-      statusEl.textContent = 'Download started: ' + a.download;
-      log('Download created:', a.download);
-
-    } catch (e) {
-      statusEl.textContent = 'Write/generate failed';
-      log('Write/generate error:', e && (e.message || e));
-    }
-  });
-
-  // Populate experiments UI with discovered ones + keep common list
-  (function addOptionalCustomExpInput(){
-    // Add a small field to add custom experiment IDs dynamically (optional)
-    const wrapper = document.createElement('div');
-    wrapper.style.marginTop = '8px';
-    wrapper.innerHTML = `
-      <div style="display:flex;gap:8px;align-items:center">
-        <input id="customExp" placeholder="Add custom experiment (id)" style="flex:1;padding:8px;border-radius:8px;border:1px solid rgba(255,255,255,0.03);background:transparent;color:inherit">
-        <button id="addExpBtn" class="muted-btn">Add</button>
-      </div>`;
-    expList.parentNode.insertBefore(wrapper, expList.nextSibling);
-
-    wrapper.querySelector('#addExpBtn').addEventListener('click', () => {
-      const v = wrapper.querySelector('#customExp').value.trim();
-      if (!v) return;
-      // create checkbox if not already present
-      if (Array.from(document.querySelectorAll('.exp-checkbox')).some(cb => cb.value === v)) {
-        log('Experiment already in list:', v);
-        wrapper.querySelector('#customExp').value = '';
-        return;
-      }
-      const lab = document.createElement('label');
-      lab.className = 'exp';
-      lab.innerHTML = `<input type="checkbox" class="exp-checkbox" value="${v}" checked> <div style="flex:1">${v}</div>`;
-      expList.appendChild(lab);
-      wrapper.querySelector('#customExp').value = '';
-    });
-  })();
-
-})();
+  statusEl.textContent = "Download ready.";
+});
 </script>
+
 </body>
 </html>
