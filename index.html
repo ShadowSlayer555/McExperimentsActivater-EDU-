@@ -1,326 +1,237 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Education Edition World Experiment Editor</title>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>MCWorld Experiments Editor — Education Edition</title>
 
-  <!-- Libraries -->
-  <script src="https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js"></script>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/pako/2.1.0/pako.min.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/prismarine-nbt@1.11.0/dist/prismarine-nbt.min.js"></script>
+<!-- libs -->
+<script src="https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pako/2.1.0/pako.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/prismarine-nbt@1.11.0/dist/prismarine-nbt-with-bytebuffer.min.js"></script>
 
-  <style>
-    body {
-      margin: 0;
-      padding: 0;
-      font-family: system-ui, Segoe UI, Roboto, Arial;
-      background: #f5f5f7;
-      color: #222;
-    }
-
-    header {
-      text-align: center;
-      padding: 30px 20px 10px;
-      font-size: 32px;
-      font-weight: 700;
-    }
-
-    .subtitle {
-      text-align: center;
-      color: #555;
-      font-size: 16px;
-      margin-bottom: 18px;
-    }
-
-    .container {
-      max-width: 900px;
-      background: #fff;
-      margin: 0 auto;
-      padding: 24px;
-      border-radius: 14px;
-      box-shadow: 0 8px 40px rgba(0, 0, 0, 0.08);
-    }
-
-    .dropzone {
-      border: 2px dashed #ccc;
-      border-radius: 14px;
-      padding: 40px;
-      text-align: center;
-      transition: 0.25s;
-      background: #fafafa;
-      cursor: pointer;
-    }
-
-    .dropzone:hover {
-      border-color: #0b74ff;
-      background: #f0f6ff;
-    }
-
-    input[type="file"] {
-      margin-top: 15px;
-    }
-
-    #status {
-      margin-top: 16px;
-      font-size: 14px;
-      color: #444;
-      text-align: center;
-    }
-
-    h3 {
-      margin-top: 25px;
-      font-size: 22px;
-    }
-
-    .exp-grid {
-      display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
-      gap: 10px;
-      margin-top: 12px;
-    }
-
-    .exp-grid label {
-      background: #f8f8f8;
-      padding: 10px 12px;
-      border-radius: 10px;
-      border: 1px solid #ddd;
-      display: flex;
-      align-items: center;
-      gap: 10px;
-    }
-
-    button {
-      margin-top: 18px;
-      padding: 12px 16px;
-      border: none;
-      border-radius: 10px;
-      background: #0b74ff;
-      color: white;
-      font-size: 16px;
-      cursor: pointer;
-      transition: 0.2s;
-    }
-
-    button:hover {
-      background: #005ce6;
-    }
-
-    pre {
-      margin-top: 20px;
-      background: #f1f1f1;
-      padding: 14px;
-      border-radius: 10px;
-      max-height: 260px;
-      overflow-y: auto;
-      font-size: 13px;
-    }
-  </style>
+<style>
+  body{font-family:system-ui;background:#f4f4f8;margin:0;padding:40px;color:#111}
+  .card{max-width:900px;margin:0 auto;background:#fff;padding:24px;border-radius:14px;box-shadow:0 10px 40px rgba(0,0,0,.08)}
+  h1{margin-top:0;font-size:1.9em;color:#0b74ff}
+  .drop{border:2px dashed #ccc;border-radius:12px;padding:26px;text-align:center;font-size:1.1em;background:#fafafa;cursor:pointer}
+  .exps{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:10px;margin-top:16px}
+  button{padding:12px 20px;border:none;border-radius:10px;background:#0b74ff;color:#fff;font-size:1em;cursor:pointer;margin-top:12px}
+  pre{background:#f7f7f7;padding:14px;border-radius:8px;max-height:260px;overflow:auto;font-size:.9em}
+</style>
 </head>
-
 <body>
 
-<header>.mcworld Experiments Editor — Education Edition</header>
-<div class="subtitle">Enable full experimental gameplay in any Education Edition world</div>
+<div class="card">
+  <h1>.mcworld Experiments Editor — Education Edition</h1>
+  <p>Enable **full experimental gameplay** inside any <code>.mcworld</code> file. 100% in your browser.</p>
 
-<div class="container">
-  <div id="dropzone" class="dropzone">
-    Drop a <b>.mcworld</b> or <b>.zip</b> here<br>
-    <input id="fileInput" type="file" accept=".mcworld,.zip">
+  <div id="drop" class="drop">
+    Drop a <code>.mcworld</code> here<br><br>
+    <input id="fileInput" type="file" accept=".mcworld,.zip" />
   </div>
 
-  <div id="status"><small>Waiting for world...</small></div>
+  <div id="status" style="margin-top:12px;color:#555"><small>Waiting for file...</small></div>
 
-  <div id="controls" style="display:none;">
-    <h3>Choose experiments to enable</h3>
-    <div id="expList" class="exp-grid"></div>
-    <button id="processBtn">Build & Download Modified World</button>
+  <div id="controls" style="display:none;margin-top:18px">
+    <h3>Select Experiments</h3>
+    <div id="expList" class="exps"></div>
+    <button id="processBtn">Download Modified .mcworld</button>
   </div>
 
-  <h3 style="margin-top:30px;">Debug Output</h3>
-  <pre id="debug"></pre>
+  <hr style="margin:24px 0">
+  <h3>Debug Output</h3>
+  <pre id="out"></pre>
 </div>
 
 <script>
-(function () {
+const JSZip = window.JSZip;
+const pako = window.pako;
+const nbt = window.nbt;
 
-  const JSZip = window.JSZip;
-  const pako = window.pako;
-  const nbt = window.nbt;
-  const debug = document.getElementById("debug");
-  const status = document.getElementById("status");
-  const dropzone = document.getElementById("dropzone");
-  const fileInput = document.getElementById("fileInput");
-  const controls = document.getElementById("controls");
-  const expList = document.getElementById("expList");
-  const processBtn = document.getElementById("processBtn");
+const out = document.getElementById("out");
+const statusEl = document.getElementById("status");
 
-  function log(msg, obj) {
-    if (obj) debug.textContent += msg + " " + JSON.stringify(obj, null, 2) + "\n";
-    else debug.textContent += msg + "\n";
-    debug.scrollTop = debug.scrollHeight;
+function log(...msg){
+  out.textContent += msg.join(" ") + "\n";
+  out.scrollTop = out.scrollHeight;
+}
+
+const EXPERIMENTS = [
+  "experimental_gameplay",
+  "holiday_creator_features",
+  "beta_api",
+  "upcoming_creator_features",
+  "caves_and_cliffs",
+  "compressed_chunks",
+  "actor_system",
+  "restructured_world_generation",
+  "fluid_tick_updates",
+  "terrain_generation_v2"
+];
+
+function buildUI(){
+  const box = document.getElementById("expList");
+  box.innerHTML = "";
+  for(const e of EXPERIMENTS){
+    const row = document.createElement("label");
+    row.innerHTML = `<input type="checkbox" class="ex" value="${e}"> ${e}`;
+    box.appendChild(row);
+  }
+}
+buildUI();
+
+// drag/drop
+const drop = document.getElementById("drop");
+["dragenter","dragover"].forEach(ev =>
+  drop.addEventListener(ev, e=>{
+    e.preventDefault();
+    drop.style.borderColor="#0b74ff";
+  })
+);
+["dragleave","drop"].forEach(ev =>
+  drop.addEventListener(ev, e=>{
+    e.preventDefault();
+    drop.style.borderColor="#ccc";
+  })
+);
+drop.addEventListener("drop", e=>{
+  const file = e.dataTransfer.files[0];
+  if(file) loadWorld(file);
+});
+
+document.getElementById("fileInput").addEventListener("change", e=>{
+  const file = e.target.files[0];
+  if(file) loadWorld(file);
+});
+
+let zip = null;
+let levelPath = null;
+let parsedNBT = null;
+let baseName = "world";
+
+async function loadWorld(file){
+  out.textContent = "";
+  statusEl.innerHTML = `<small>Loading ${file.name}...</small>`;
+  baseName = file.name.replace(/\.(mcworld|zip)$/i,"");
+
+  try{
+    zip = await JSZip.loadAsync(file);
+  } catch(e){
+    log("Failed to read zip", e);
+    statusEl.innerHTML = "<small style='color:red'>Invalid .mcworld file</small>";
+    return;
   }
 
-  const EXPERIMENTS = [
-    "experimental_gameplay",
-    "holiday_creator_features",
-    "beta_api",
-    "upcoming_creator_features",
-    "caves_and_cliffs",
-    "compressed_chunks",
-    "actor_system",
-    "restructured_world_generation",
-    "fluid_tick_updates",
-    "terrain_generation_v2",
-  ];
+  statusEl.innerHTML = "<small>Loaded. Searching for level.dat...</small>";
 
-  function renderExperimentToggles() {
-    expList.innerHTML = "";
-    EXPERIMENTS.forEach(e => {
-      const label = document.createElement("label");
-      label.innerHTML = `<input type="checkbox" value="${e}"> ${e}`;
-      expList.appendChild(label);
-    });
+  // find level.dat
+  zip.forEach((p,entry)=>{
+    if(p.toLowerCase().endsWith("level.dat")) levelPath = p;
+  });
+
+  if(!levelPath){
+    statusEl.innerHTML = "<small style='color:red'>level.dat not found</small>";
+    return;
   }
-  renderExperimentToggles();
 
-  // drag & drop
-  ["dragenter", "dragover"].forEach(ev =>
-    dropzone.addEventListener(ev, e => {
-      e.preventDefault();
-      dropzone.style.borderColor = "#0b74ff";
-    })
-  );
+  log("Found:", levelPath);
 
-  ["dragleave", "drop"].forEach(ev =>
-    dropzone.addEventListener(ev, e => {
-      e.preventDefault();
-      dropzone.style.borderColor = "#ccc";
-    })
-  );
+  const raw = await zip.file(levelPath).async("uint8array");
+  let data = raw;
 
-  dropzone.addEventListener("drop", e => {
-    const f = e.dataTransfer.files[0];
-    if (f) loadWorld(f);
-  });
+  // Try gunzip
+  let uncompressed = null;
+  try{
+    uncompressed = pako.ungzip(raw);
+    log("Gzip detected, decompressed:", uncompressed.length);
+  } catch(err){
+    log("Not gzipped; using raw bytes");
+    uncompressed = raw;
+  }
 
-  fileInput.addEventListener("change", e => {
-    const f = e.target.files[0];
-    if (f) loadWorld(f);
-  });
-
-  let loadedZip = null;
-  let parsedNBT = null;
-  let levelPath = null;
-  let baseName = "world";
-
-  async function loadWorld(file) {
-    debug.textContent = "";
-    status.textContent = "Loading " + file.name + "...";
-
-    baseName = file.name.replace(/\.mcworld|\.zip/i, "");
-
-    let zip;
-    try {
-      zip = await JSZip.loadAsync(file);
-      loadedZip = zip;
-    } catch (err) {
-      status.textContent = "Failed to open archive";
-      log("Zip error:", err);
-      return;
-    }
-
-    status.textContent = "Archive loaded — searching for level.dat";
-
-    let levelEntry = null;
-    zip.forEach((path, entry) => {
-      if (path.toLowerCase().endsWith("level.dat")) levelEntry = entry;
-    });
-
-    if (!levelEntry) {
-      status.textContent = "level.dat not found!";
-      return;
-    }
-
-    levelPath = levelEntry.name;
-
-    const raw = await levelEntry.async("arraybuffer");
-    let bytes = new Uint8Array(raw);
-
-    let nbtBytes;
-    try {
-      nbtBytes = pako.ungzip(bytes);
-      log("Gzip OK");
-    } catch {
-      log("Not gzipped; using raw bytes");
-      nbtBytes = bytes;
-    }
-
-    try {
-      parsedNBT = await new Promise((resolve, reject) => {
-        nbt.parse(nbtBytes, (err, data) => err ? reject(err) : resolve(data));
+  // IMPORTANT: EDU worlds use LITTLE ENDIAN NBT → parseUncompressed()
+  try{
+    parsedNBT = await new Promise((resolve,reject)=>{
+      nbt.parseUncompressed(uncompressed, (err, result)=>{
+        if(err) reject(err); else resolve(result);
       });
-    } catch (e) {
-      status.textContent = "Failed to parse NBT";
-      log("NBT error:", e);
-      return;
+    });
+  } catch(e){
+    log("NBT error:", e);
+    statusEl.innerHTML = "<small style='color:red'>Failed to parse NBT</small>";
+    return;
+  }
+
+  statusEl.innerHTML = "<small>World loaded. Experiments ready.</small>";
+  document.getElementById("controls").style.display = "block";
+
+  // Read existing experiments
+  try{
+    const root = parsedNBT.value;
+    let expTag = null;
+
+    if(root.Data?.value?.Experiments?.value){
+      expTag = root.Data.value.Experiments.value;
+    }
+    if(root.Experiments?.value){
+      expTag = root.Experiments.value;
     }
 
-    status.textContent = "World loaded — choose experiments";
+    if(expTag){
+      const active = new Set(
+        Object.keys(expTag).filter(k=>expTag[k].value === 1)
+      );
 
-    populateExistingExperiments();
+      document.querySelectorAll(".ex").forEach(cb=>{
+        cb.checked = active.has(cb.value);
+      });
+    }
+  } catch(e){
+    log("Experiment read error:", e);
+  }
+}
 
-    controls.style.display = "block";
+document.getElementById("processBtn").addEventListener("click", async ()=>{
+  if(!parsedNBT) return alert("Load a world first!");
+
+  const chosen = [...document.querySelectorAll(".ex:checked")].map(cb=>cb.value);
+
+  const root = parsedNBT.value;
+  if(!root.Data) root.Data = { type:"compound", value:{} };
+  if(!root.Data.value) root.Data.value = {};
+
+  const expMap = {};
+  for(const e of chosen){
+    expMap[e] = { type:"byte", value:1 };
   }
 
-  function populateExistingExperiments() {
-    const root = parsedNBT.value;
-    const exp =
-      root?.Data?.value?.Experiments?.value ||
-      root?.Experiments?.value ||
-      {};
+  root.Data.value.Experiments = { type:"compound", value:expMap };
+  root.Experiments = { type:"compound", value:expMap };
 
-    const enabled = new Set(Object.entries(exp).filter(e => e[1]?.value === 1).map(e => e[0]));
-
-    document.querySelectorAll("#expList input").forEach(i => {
-      i.checked = enabled.has(i.value);
-    });
+  // Write NBT (LITTLE-ENDIAN)
+  let outBytes;
+  try{
+    outBytes = nbt.writeUncompressed(parsedNBT);
+  } catch(e){
+    log("NBT write error:", e);
+    return;
   }
 
-  processBtn.addEventListener("click", async () => {
-    if (!parsedNBT) return;
+  // Re-gzip for safety (Minecraft loads both)
+  let gz = pako.gzip(outBytes);
 
-    const chosen = [...document.querySelectorAll("#expList input:checked")].map(i => i.value);
+  zip.file(levelPath, gz);
 
-    const compound = {};
-    chosen.forEach(e => compound[e] = { type: "byte", value: 1 });
+  const blob = await zip.generateAsync({ type:"blob" });
 
-    const root = parsedNBT.value;
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(blob);
+  a.download = baseName + "_experiments.mcworld";
+  a.click();
 
-    if (!root.Data) root.Data = { type: "compound", value: {} };
-    if (!root.Data.value) root.Data.value = {};
-
-    root.Data.value.Experiments = { type: "compound", value: compound };
-    root.Experiments = { type: "compound", value: compound };
-
-    let nbtBuf = nbt.writeUncompressed(parsedNBT);
-    const gz = pako.gzip(new Uint8Array(nbtBuf));
-
-    loadedZip.file(levelPath, gz, { binary: true });
-
-    status.textContent = "Building new world...";
-
-    const blob = await loadedZip.generateAsync({ type: "blob" });
-    const a = document.createElement("a");
-    a.href = URL.createObjectURL(blob);
-    a.download = baseName + "_experiments.mcworld";
-    a.click();
-
-    status.textContent = "Download ready!";
-    log("Export complete");
-  });
-
-})();
+  statusEl.innerHTML = "<small>Download ready!</small>";
+});
 </script>
 
 </body>
